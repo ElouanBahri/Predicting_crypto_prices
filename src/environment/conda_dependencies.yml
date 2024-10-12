@@ -1,4 +1,4 @@
-name: challenge_ENS_env
+name: challenge_ENS_env_CFM
 channels:
   - defaults
   - conda-forge
