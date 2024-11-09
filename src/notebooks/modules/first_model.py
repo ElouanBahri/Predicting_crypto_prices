@@ -1,14 +1,58 @@
 import pandas as pd 
+import numpy as np
+import tensorflow as tf
 
 
-def convert_X_data(X : pd.DataFrame) -> pd.DataFrame :
+def change_X_data_1(X : pd.DataFrame) -> pd.DataFrame :
 
     X["trade"] = X["trade"].map({False: 0, True: 1})
     X["action"] = X["action"].map({"A": 0, "D": 1, "U" : 2})
     X["side"] = X["side"].map({"A": 1, "B": 0})
-    X = X.sort_values(by="obs_id").reset_index(drop=True)
 
-    return X
+    X["bid_size"] = np.log(X["bid_size"] + 1)
+    X["ask_size"] = np.log(X["ask_size"] + 1)
+
+    X["price"] = X["price"]*10
+    X["bid"] = X["bid"]*100
+    X["ask"] = X["ask"]*100
+
+
+
+    X = X.sort_values(by="obs_id").reset_index(drop=True)
+    df_grouped = X.groupby("obs_id").mean().reset_index()
+
+    return df_grouped
+
+def change_X_data_2(X : pd.DataFrame) -> pd.DataFrame :
+
+    X["trade"] = X["trade"].map({False: 0, True: 1})
+    X["action"] = X["action"].map({"A": 0, "D": 1, "U" : 2})
+    X["side"] = X["side"].map({"A": 1, "B": 0})
+
+    X["bid_size"] = np.log(X["bid_size"] + 1)
+    X["ask_size"] = np.log(X["ask_size"] + 1)
+
+    X["price"] = X["price"]*10
+    X["bid"] = X["bid"]*100
+    X["ask"] = X["ask"]*100
+
+    tensor_list = []
+
+    # Group by 'obs_id'
+    for obs_id, group in X.groupby('obs_id'):
+        # Drop 'obs_id' column if it's not needed
+        features = group.drop(columns=['obs_id'])
+        
+        matrix = np.array(features.values, dtype=np.float32)
+    
+        
+        # Append the Tensor to the tensor list
+        tensor_list.append(matrix)
+
+    df = pd.DataFrame({'column 1': tensor_list})
+
+
+    return df
 
 def change_y_data(y : pd.DataFrame) -> pd.DataFrame : 
     
