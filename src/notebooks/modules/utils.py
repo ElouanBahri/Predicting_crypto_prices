@@ -1,7 +1,7 @@
 import pandas as pd 
 import numpy as np
 import tensorflow as tf
-
+from typing import Union
 
 def change_X_data_1(X : pd.DataFrame) -> pd.DataFrame :
 
@@ -65,3 +65,20 @@ def change_y_data(y : pd.DataFrame) -> pd.DataFrame :
     data_duplicated = data_duplicated.drop(columns=["obs_id"])
 
     return data_duplicated
+
+
+def create_y_test_file(x_test : np.ndarray, model: Union[tf.keras.Model, any]) -> pd.DataFrame :
+
+    predictions = model.predict(x_test)  # Replace x_test with your input data
+
+    predictions = np.argmax(predictions, axis=1)
+    # Create a DataFrame with a single column for the predictions
+    df_results = pd.DataFrame(predictions, columns=['eqt_code_cat'])
+
+    df_results["obs_id"] = range(len(df_results))
+
+    new_order = ['obs_id', 'eqt_code_cat']
+
+    df_results = df_results[new_order]
+
+    return df_results

@@ -28,10 +28,4 @@ pip install -r src/environment/requirements.txt
 ```bash
 invoke format
 ```
-## 2. Run streamlit
 
-1. To launch streamlit , you can run : 
-
-```bash
-streamlit run src/streamlit_app/Accueil.py
-```
