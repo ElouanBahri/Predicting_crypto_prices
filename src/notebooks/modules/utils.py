@@ -1,62 +1,59 @@
-import pandas as pd 
-import numpy as np
-import tensorflow as tf
 from typing import Union
 
-def change_X_data_1(X : pd.DataFrame) -> pd.DataFrame :
+import numpy as np
+import pandas as pd
+import tensorflow as tf
 
+
+def change_X_data_1(X: pd.DataFrame) -> pd.DataFrame:
     X["trade"] = X["trade"].map({False: 0, True: 1})
-    X["action"] = X["action"].map({"A": 0, "D": 1, "U" : 2})
+    X["action"] = X["action"].map({"A": 0, "D": 1, "U": 2})
     X["side"] = X["side"].map({"A": 1, "B": 0})
 
     X["bid_size"] = np.log(X["bid_size"] + 1)
     X["ask_size"] = np.log(X["ask_size"] + 1)
 
-    X["price"] = X["price"]*10
-    X["bid"] = X["bid"]*100
-    X["ask"] = X["ask"]*100
-
-
+    X["price"] = X["price"] * 10
+    X["bid"] = X["bid"] * 100
+    X["ask"] = X["ask"] * 100
 
     X = X.sort_values(by="obs_id").reset_index(drop=True)
     df_grouped = X.groupby("obs_id").mean().reset_index()
 
     return df_grouped
 
-def change_X_data_2(X : pd.DataFrame) -> pd.DataFrame :
 
+def change_X_data_2(X: pd.DataFrame) -> pd.DataFrame:
     X["trade"] = X["trade"].map({False: 0, True: 1})
-    X["action"] = X["action"].map({"A": 0, "D": 1, "U" : 2})
+    X["action"] = X["action"].map({"A": 0, "D": 1, "U": 2})
     X["side"] = X["side"].map({"A": 1, "B": 0})
 
     X["bid_size"] = np.log(X["bid_size"] + 1)
     X["ask_size"] = np.log(X["ask_size"] + 1)
 
-    X["price"] = X["price"]*10
-    X["bid"] = X["bid"]*100
-    X["ask"] = X["ask"]*100
+    X["price"] = X["price"] * 10
+    X["bid"] = X["bid"] * 100
+    X["ask"] = X["ask"] * 100
 
     tensor_list = []
 
     # Group by 'obs_id'
-    for obs_id, group in X.groupby('obs_id'):
+    for obs_id, group in X.groupby("obs_id"):
         # Drop 'obs_id' column if it's not needed
-        features = group.drop(columns=['obs_id'])
-        
+        features = group.drop(columns=["obs_id"])
+
         matrix = np.array(features.values, dtype=np.float32)
-    
-        
+
         # Append the Tensor to the tensor list
         tensor_list.append(matrix)
 
-    df = pd.DataFrame({'column 1': tensor_list})
-
+    df = pd.DataFrame({"column 1": tensor_list})
 
     return df
 
-def change_y_data(y : pd.DataFrame) -> pd.DataFrame : 
-    
-    n = 100 
+
+def change_y_data(y: pd.DataFrame) -> pd.DataFrame:
+    n = 100
 
     data_duplicated = pd.concat([y] * n, ignore_index=True)
 
@@ -67,17 +64,18 @@ def change_y_data(y : pd.DataFrame) -> pd.DataFrame :
     return data_duplicated
 
 
-def create_y_test_file(x_test : np.ndarray, model: Union[tf.keras.Model, any]) -> pd.DataFrame :
-
+def create_y_test_file(
+    x_test: np.ndarray, model: Union[tf.keras.Model, any]
+) -> pd.DataFrame:
     predictions = model.predict(x_test)  # Replace x_test with your input data
 
     predictions = np.argmax(predictions, axis=1)
     # Create a DataFrame with a single column for the predictions
-    df_results = pd.DataFrame(predictions, columns=['eqt_code_cat'])
+    df_results = pd.DataFrame(predictions, columns=["eqt_code_cat"])
 
     df_results["obs_id"] = range(len(df_results))
 
-    new_order = ['obs_id', 'eqt_code_cat']
+    new_order = ["obs_id", "eqt_code_cat"]
 
     df_results = df_results[new_order]
 
