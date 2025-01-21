@@ -1,4 +1,4 @@
-name: challenge_ENS_env_CFM
+name: Predicting_crypto
 channels:
   - defaults
   - conda-forge
