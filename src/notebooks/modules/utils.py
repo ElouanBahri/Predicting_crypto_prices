@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+
 def prep_for_RNN(df, target_column, timesteps=3):
     """
     Transforms a DataFrame into sequences of input-output pairs for RNN.
@@ -31,14 +32,37 @@ def prep_for_RNN(df, target_column, timesteps=3):
         ]
     )
     for i in range(len(df) - timesteps):
+        input_sequence = df.iloc[
+            i : i + timesteps
+        ].values  # Use all columns, including 'close'
+        target_value = df.iloc[i + timesteps][
+            target_column
+        ]  # Target value is the next 'close'
 
-        input_sequence = df.iloc[i:i + timesteps].values  # Use all columns, including 'close'
-        target_value = df.iloc[i + timesteps][target_column]  # Target value is the next 'close'
-        
         X.append(input_sequence)
         y.append(target_value)
 
     return np.array(X), np.array(y)
+
+
+def create_features_for_next_prediction(
+    df, columns=["close", "open", "high", "low", "volume"], window_size=4
+):
+    # Copy only the last `window_size` rows
+    last_rows = df.iloc[-window_size:].copy()
+
+    # Create a new DataFrame to store the new row with lagged features
+    new_row = {}
+
+    for i in range(1, window_size + 1):
+        for col in columns:
+            # Generate lagged features
+            new_row[f"lag_{col}{i}"] = last_rows.iloc[-i][col]
+
+    # Convert the new row into a DataFrame
+    new_row_df = pd.DataFrame([new_row])
+
+    return new_row_df
 
 
 def create_features_from_past(
