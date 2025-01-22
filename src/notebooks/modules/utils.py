@@ -111,3 +111,48 @@ def create_X_y(df):
     X = df.drop(columns=["low", "high", "volume", "close", "timestamp", "open"])
 
     return X, y
+
+
+def potential_benef(df, initial_ammount, leverage):
+    """
+    Calculate the potential benefit based on actual price changes with leverage,
+    while deciding position (long/short) based on predicted prices.
+
+    Parameters:
+        df (pd.DataFrame): DataFrame containing `predicted_price` and `actual_price`.
+        initial_ammount (float): The initial amount of money to invest.
+        leverage (float): Leverage multiplier for trading.
+
+    Returns:
+        float: The final amount after all trades.
+    """
+    # Initialize the current amount with the initial amount
+    current_amount = initial_ammount
+
+    # Loop through each row except the last one
+    for i in range(0, len(df) - 2):
+        # Extract current and next row's predicted and actual prices
+        
+        current_actual_price = df.loc[i, "actual_price"]
+        next_predicted_price = df.loc[i + 1, "predicted_price"]
+        next_actual_price = df.loc[i + 1, "actual_price"]
+
+        # Determine if we're going long or short
+        if next_predicted_price > current_actual_price:
+            # Long position
+            price_change = (next_actual_price - current_actual_price) / current_actual_price
+        else:
+            # Short position
+            price_change = (current_actual_price - next_actual_price) / current_actual_price
+
+        # Calculate profit or loss with leverage
+        profit_or_loss = current_amount * leverage * price_change
+
+        print(profit_or_loss)
+
+        # Update the current amount
+        current_amount += profit_or_loss
+
+    return current_amount
+
+    
