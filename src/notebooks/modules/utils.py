@@ -4,6 +4,42 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+def prep_for_RNN(df, target_column, timesteps=3):
+    """
+    Transforms a DataFrame into sequences of input-output pairs for RNN.
+
+    Parameters:
+        df (pd.DataFrame): Input DataFrame containing features and target column.
+        target_column (str): Name of the target column to predict.
+        timesteps (int): Number of timesteps to use as input.
+
+    Returns:
+        X (np.array): 3D array of input sequences (samples, timesteps, features).
+        y (np.array): 1D array of target values corresponding to each sequence.
+    """
+    X, y = [], []
+
+    df = df.drop(
+        columns=[
+            "close_time",
+            "timestamp",
+            "quote_asset_volume",
+            "number_of_trades",
+            "taker_buy_base_asset_volume",
+            "taker_buy_quote_asset_volume",
+            "ignore",
+        ]
+    )
+    for i in range(len(df) - timesteps):
+
+        input_sequence = df.iloc[i:i + timesteps].values  # Use all columns, including 'close'
+        target_value = df.iloc[i + timesteps][target_column]  # Target value is the next 'close'
+        
+        X.append(input_sequence)
+        y.append(target_value)
+
+    return np.array(X), np.array(y)
+
 
 def create_features_from_past(
     df, column=["close", "open", "high", "low", "volume"], window_size=4
