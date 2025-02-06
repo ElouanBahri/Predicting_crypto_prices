@@ -32,7 +32,7 @@ def feature_engineering_last(df):
     df["upper_band"], df["middle_band"], df["lower_band"] = talib.BBANDS(
         df["close"], timeperiod=10
     )
-    df['Bollinger_Width'] = df['upper_band'] - df['lower_band']
+    df["Bollinger_Width"] = df["upper_band"] - df["lower_band"]
 
     # MA (Moving Avearges)
     df["MA_7"] = df["close"].rolling(window=7).mean()
@@ -45,11 +45,9 @@ def feature_engineering_last(df):
         df["close"], fastperiod=12, slowperiod=26, signalperiod=9
     )
 
-    df['ATR'] = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
-    
+    df["ATR"] = talib.ATR(df["high"], df["low"], df["close"], timeperiod=14)
 
-    df['OBV'] = (np.sign(df['close'].diff()) * df['volume']).cumsum()
-
+    df["OBV"] = (np.sign(df["close"].diff()) * df["volume"]).cumsum()
 
     df.dropna(inplace=True)
 
@@ -84,8 +82,8 @@ def feature_engineering_last(df):
     df_scaled = df.copy()
     df_scaled[columns_to_normalize] = scaler.fit_transform(df[columns_to_normalize])
 
-    df_scaled['target'] = np.where(df_scaled['return'] > 0, 1, 0)
-    
+    df_scaled["target"] = np.where(df_scaled["return"] > 0, 1, 0)
+
     return df_scaled
 
 
