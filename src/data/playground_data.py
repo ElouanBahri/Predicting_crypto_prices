@@ -10,7 +10,7 @@ from src.data import plot, retriever
 
 symbol_list = ["BTCUSDT"]
 my_interval = data_config.DEFAULT_INTERVAL
-my_start_date = "2025-01-01"
+my_start_date = "2019-01-01"
 filename_format = data_config.GENERAL_FILENAME
 retriever.save_data(symbol_list, my_interval, my_start_date)
 retriever.update_data("BTCUSDT")

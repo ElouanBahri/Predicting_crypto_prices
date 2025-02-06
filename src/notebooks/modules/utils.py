@@ -2,8 +2,79 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+import talib
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+
+
+def feature_engineering_last(df):
+    df.drop(
+        columns=[
+            "timestamp",
+            "close_time",
+            "ignore",
+            "taker_buy_base_asset_volume",
+            "taker_buy_quote_asset_volume",
+            "quote_asset_volume",
+        ],
+        inplace=True,
+    )
+
+    # we calculate the log(return) and we'll predict this
+    df["return"] = np.log(df["close"] / df["close"].shift(1))
+    # Drop NaN values from the first shift
+    df.dropna(inplace=True)
+
+    # RSI
+    df["RSI"] = talib.RSI(df["close"], timeperiod=14)
+
+    # Bollinger Bands
+    df["upper_band"], df["middle_band"], df["lower_band"] = talib.BBANDS(
+        df["close"], timeperiod=10
+    )
+
+    # MA (Moving Avearges)
+    df["MA_7"] = df["close"].rolling(window=7).mean()
+    df["MA_25"] = df["close"].rolling(window=25).mean()
+    df["MA_50"] = df["close"].rolling(window=50).mean()
+    df["MA_100"] = df["close"].rolling(window=100).mean()
+
+    # MACD (Moving Average Convergence Divergence)
+    df["MACD"], df["MACD_signal"], df["MACD_hist"] = talib.MACD(
+        df["close"], fastperiod=12, slowperiod=26, signalperiod=9
+    )
+
+    df.dropna(inplace=True)
+
+    # Define the columns to normalize
+    columns_to_normalize = [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "number_of_trades",
+        "RSI",
+        "upper_band",
+        "middle_band",
+        "lower_band",
+        "MA_7",
+        "MA_25",
+        "MA_50",
+        "MA_100",
+        "MACD",
+        "MACD_signal",
+        "MACD_hist",
+    ]
+
+    # Initialize the scaler
+    scaler = MinMaxScaler(feature_range=(0, 1))
+
+    # Apply MinMaxScaler to selected columns
+    df_scaled = df.copy()
+    df_scaled[columns_to_normalize] = scaler.fit_transform(df[columns_to_normalize])
+
+    return df_scaled
 
 
 def prep_for_RNN(df, target_column, timesteps=3):
