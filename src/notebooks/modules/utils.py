@@ -34,7 +34,7 @@ def feature_engineering_last(df):
     )
     df["Bollinger_Width"] = df["upper_band"] - df["lower_band"]
 
-    # MA (Moving Avearges)
+    # MA (Moving Averages)
     df["MA_7"] = df["close"].rolling(window=7).mean()
     df["MA_25"] = df["close"].rolling(window=25).mean()
     df["MA_50"] = df["close"].rolling(window=50).mean()
@@ -76,9 +76,8 @@ def feature_engineering_last(df):
     ]
 
     # Initialize the scaler
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = StandardScaler()
 
-    # Apply MinMaxScaler to selected columns
     df_scaled = df.copy()
     df_scaled[columns_to_normalize] = scaler.fit_transform(df[columns_to_normalize])
 
