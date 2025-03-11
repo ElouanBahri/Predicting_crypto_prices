@@ -53,7 +53,7 @@ def process_data(data: list):
     df = pd.DataFrame(data, columns=columns_historical_prices)
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df["close_time"] = pd.to_datetime(df["close_time"], unit="ms")
-    df.set_index("timestamp", inplace=True)
+    df.set_index("timestamp", inplace=False)
     return df
 
 

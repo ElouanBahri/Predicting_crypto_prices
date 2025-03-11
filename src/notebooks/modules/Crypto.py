@@ -3,15 +3,16 @@ import requests
 import time
 import os
 import sys
-from src.data import plot, retriever
+
 from datetime import datetime
 from sklearn.decomposition import PCA
 import numpy as np
 
 
 # Add the project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
+from src.data import plot, retriever
 from src.data import binance
 from src.notebooks.modules.utils import feature_engineering_last
 
@@ -25,9 +26,6 @@ class CryptoData:
         self.symbol = symbol.upper()
         self.interval = interval
         self.data = None  # Placeholder for historical data
-        
-        # Fetch initial data
-        self.update_data()
 
     def fetch_data(self, start_time=None):
         """
@@ -42,7 +40,7 @@ class CryptoData:
 
     def update_data(self):
 
-        current_data = self
+        current_data = self.data
         last_date = current_data.index[-1]
         last_date_str = datetime.strftime(last_date, "%Y-%m-%d")
         new_data = binance.get_binance_data(self.symbol, self.interval, last_date_str)
@@ -58,33 +56,46 @@ class CryptoData:
             return
         
         df = self.data.copy()
-        
-        # Example: Compute moving averages
+
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
         df = feature_engineering_last(df)
         y = df['target']
 
         df_without_target= df.drop(columns=['target'], errors='ignore')  # Only keep features
         
+        pca = PCA()
+        pca.fit(df_without_target)
 
         explained_variance = np.cumsum(pca.explained_variance_ratio_)
+        num_components = np.argmax(explained_variance >= 0.95) + 1  # Find min components for 95% variance
 
-        num_components = np.argmax(explained_variance >= 0.95) + 1
-        print(f"Optimal number of components: {num_components}")
+        if num_components == 0:
+            print("⚠️ No PCA components meet 95% explained variance. Using 1 component.")
+            num_components = 1
 
-        # Transform data using optimal number of components
+        print(f"✅ Optimal number of components: {num_components}")
+
+        # ✅ Step 2: Fit PCA with optimal number of components
         pca = PCA(n_components=num_components)
         X_reduced = pca.fit_transform(df_without_target)
 
-        # Convert back to DataFrame
+        # ✅ Convert back to DataFrame and restore index
         columns = [f'PC{i+1}' for i in range(num_components)]
-        X_pca_df = pd.DataFrame(X_reduced, columns=columns)
+        X_pca_df = pd.DataFrame(X_reduced, columns=columns, index=df.index)  # Keep original index
+        
+        X_pca_df['target'] = y  # Add target column back
 
-        self.data = df  # Update the class attribute with preprocessed data
+        self.data = X_pca_df  # Update the class attribute with preprocessed data
         print("Data preprocessing complete.")
 
     def show_data(self, rows=5):
         """Display the latest data."""
         if self.data is not None:
-            print(self.data.tail(rows))
+            print(self.data.head(rows))
+            print("------------------------------------------------")
+            print("list of features :")
+            print(self.data.columns)
         else:
             print("No data available.")
