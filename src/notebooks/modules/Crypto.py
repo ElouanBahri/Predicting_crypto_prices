@@ -134,14 +134,18 @@ class CryptoData:
         X_features = df.drop(columns=["target"], errors="ignore")
 
         if len(X_features) < sequence_length:
-            print(f"❌ Not enough data. Required: {sequence_length}, Found: {len(X_features)}")
+            print(
+                f"❌ Not enough data. Required: {sequence_length}, Found: {len(X_features)}"
+            )
             return
 
         # Extract the latest sequence
         latest_sequence = X_features.iloc[-sequence_length:].to_numpy()
 
         if latest_sequence.shape[1] != num_features:
-            print(f"❌ Feature mismatch: Model expects {num_features} features, but found {latest_sequence.shape[1]}")
+            print(
+                f"❌ Feature mismatch: Model expects {num_features} features, but found {latest_sequence.shape[1]}"
+            )
             return
 
         # Reshape for model: (1, time_steps, features)
@@ -149,7 +153,7 @@ class CryptoData:
 
         # Predict
         proba_up = self.rnn_model.predict(latest_sequence, verbose=0)[0][0]
-        
+
         print(f"proba that it's going up  : {proba_up}")
         if proba_up > 0.55:
             return "Buy"
@@ -157,4 +161,3 @@ class CryptoData:
             return "Sell"
         else:
             return "Hold"
-        
