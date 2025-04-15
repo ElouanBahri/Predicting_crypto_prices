@@ -121,32 +121,40 @@ class CryptoData:
             print("Model not loaded. Please call load_model() first.")
             return
 
-        if self.preprocessed_data is None or self.data.empty:
+        if self.preprocessed_data is None or self.preprocessed_data.empty:
             print("No preprocessed data available to make prediction.")
             return
 
-        # Step 1: Extract most recent window of features
-        # You must adapt this based on how your model was trained (e.g., sequence length)
-        sequence_length = self.rnn_model.input_shape[
-            1
-        ]  # e.g., 60 if you trained on 60 time steps
+        # Get expected sequence length and number of features
+        sequence_length = self.rnn_model.input_shape[1]
+        num_features = self.rnn_model.input_shape[2]
 
         df = self.preprocessed_data.copy()
-        X_features = df.drop(
-            columns=["target"], errors="ignore"
-        )  # drop target if present
 
-        if len(df) < sequence_length:
-            print(
-                f"Not enough data to make prediction. Need at least {sequence_length} rows."
-            )
+        X_features = df.drop(columns=["target"], errors="ignore")
+
+        if len(X_features) < sequence_length:
+            print(f"❌ Not enough data. Required: {sequence_length}, Found: {len(X_features)}")
             return
 
-        latest_sequence = df.iloc[-sequence_length:].values
-        latest_sequence = df.reshape(1, sequence_length, -1)  # reshape for RNN input
+        # Extract the latest sequence
+        latest_sequence = X_features.iloc[-sequence_length:].to_numpy()
 
-        # Step 2: Predict next return
-        predicted_return = self.rnn_model.predict(latest_sequence)[0][0]
-        print(f"Predicted next return: {predicted_return:.5f}")
+        if latest_sequence.shape[1] != num_features:
+            print(f"❌ Feature mismatch: Model expects {num_features} features, but found {latest_sequence.shape[1]}")
+            return
 
-        return predicted_return
+        # Reshape for model: (1, time_steps, features)
+        latest_sequence = latest_sequence.reshape(1, sequence_length, num_features)
+
+        # Predict
+        proba_up = self.rnn_model.predict(latest_sequence, verbose=0)[0][0]
+        
+        print(f"proba that it's going up  : {proba_up}")
+        if proba_up > 0.55:
+            return "Buy"
+        elif proba_up < 0.44:
+            return "Sell"
+        else:
+            return "Hold"
+        
