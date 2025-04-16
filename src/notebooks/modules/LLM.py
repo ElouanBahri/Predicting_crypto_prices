@@ -1,4 +1,14 @@
+import re
+
 import requests
+
+
+def normalize_sentiment(sentiment):
+    if not isinstance(sentiment, str):
+        return "Neutral"
+    cleaned = sentiment.lower().strip()
+    cleaned = re.sub(r"[^\w\s]", "", cleaned)  # remove punctuation like '.'
+    return cleaned.capitalize()  # → "Bullish", "Bearish", "Neutral"
 
 
 class LLMAnalyzer:
@@ -24,6 +34,23 @@ class LLMAnalyzer:
         except Exception as e:
             print(f"❌ Error querying LLM: {e}")
             return "Error"
+
+    def get_sentiment_score(self, list_news):
+        score_map = {"Bullish": 1, "Bearish": -1, "Neutral": 0}
+        sentiments = []
+
+        for headline in list_news:
+            sentiment = self.get_sentiment(headline)
+            normalized = normalize_sentiment(sentiment)
+            sentiments.append(normalized)
+
+        print(sentiments)
+        print("----")
+        if not sentiments:
+            return 0  # Fallback in case the list is empty
+
+        sentiment_score = sum(score_map.get(s, 0) for s in sentiments) / len(sentiments)
+        return sentiment_score
 
 
 class CryptoNewsFetcher:
