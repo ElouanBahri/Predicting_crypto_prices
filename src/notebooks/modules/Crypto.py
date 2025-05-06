@@ -161,3 +161,60 @@ class CryptoData:
             return "Sell"
         else:
             return "Hold"
+
+    def backtest_strategy(
+        self, threshold_buy=0.55, threshold_sell=0.44, initial_cash=10000
+    ):
+        if self.rnn_model is None:
+            print("❌ Model not loaded.")
+            return
+        if self.preprocessed_data is None:
+            print("❌ Data not preprocessed.")
+            return
+
+        sequence_length = self.rnn_model.input_shape[1]
+        num_features = self.rnn_model.input_shape[2]
+
+        df = self.preprocessed_data.copy()
+        X = df.drop(columns=["target"], errors="ignore").to_numpy()
+        y_true = df["target"].to_numpy()
+
+        positions = []
+        cash = initial_cash
+        holdings = 0
+        equity_curve = []
+
+        for i in range(sequence_length, len(X)):
+            x_seq = X[i - sequence_length : i].reshape(1, sequence_length, num_features)
+            proba = self.rnn_model.predict(x_seq, verbose=0)[0][0]
+            price = y_true[i]  # This assumes target ≈ return or proxy of next move
+
+            # Decision
+            if proba > threshold_buy:
+                action = "Buy"
+            elif proba < threshold_sell:
+                action = "Sell"
+            else:
+                action = "Hold"
+
+            # Simple strategy: fully invest or exit
+            if action == "Buy" and holdings == 0:
+                holdings = cash
+                cash = 0
+            elif action == "Sell" and holdings > 0:
+                cash = holdings * (1 + price)  # approximate return
+                holdings = 0
+
+            total_equity = cash + holdings * (1 + price)
+            equity_curve.append(total_equity)
+            positions.append(action)
+
+        # Build DataFrame of results
+        results = df.iloc[sequence_length:].copy()
+        results["Signal"] = positions
+        results["Equity"] = equity_curve
+
+        print("✅ Backtest complete.")
+        print(f"Final Portfolio Value: ${equity_curve[-1]:.2f}")
+        self.backtest_results = results
+        return results
