@@ -8,12 +8,17 @@ import pandas as pd
 import requests
 import tensorflow as tf
 from sklearn.decomposition import PCA
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
 
 # Add the project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 from src.data import binance, plot, retriever
-from src.notebooks.modules.utils import feature_engineering_last
+from src.notebooks.modules.utils import (
+    feature_engineering_last,
+    filter_data_by_year_month,
+)
 
 
 class CryptoData:
@@ -58,8 +63,9 @@ class CryptoData:
 
         df = self.raw_data.copy()
 
-        for col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+        YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
+
+        df = filter_data_by_year_month(df, YEARS)
 
         df = feature_engineering_last(df)
         y = df["target"]
@@ -108,6 +114,8 @@ class CryptoData:
             print("------------------------------------------------")
             print("list of features :")
             print(self.raw_data.columns)
+            print("shape: ")
+            print(self.raw_data.shape)
         else:
             print("No data available.")
 
@@ -162,7 +170,7 @@ class CryptoData:
         else:
             return "Hold"
 
-    def backtest_strategy(
+    def backtesting(
         self, threshold_buy=0.55, threshold_sell=0.44, initial_cash=10000
     ):
         if self.rnn_model is None:
@@ -175,46 +183,74 @@ class CryptoData:
         sequence_length = self.rnn_model.input_shape[1]
         num_features = self.rnn_model.input_shape[2]
 
-        df = self.preprocessed_data.copy()
-        X = df.drop(columns=["target"], errors="ignore").to_numpy()
-        y_true = df["target"].to_numpy()
+        X = self.preprocessed_data.drop(columns=["target"]).values  # Features
+        y = self.preprocessed_data["target"].values  # Target variable
+
+
+        df_real = self.raw_data.copy()
+        YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
+        df_real = filter_data_by_year_month(df_real, YEARS)
+        df_real = feature_engineering_last(df_real)
+        returns = df_real["returns", ""]
+                
+
+        # Reshape the data into sequences (timesteps)
+        timesteps = sequence_length  # Number of timesteps for the RNN
+        X_sequences = []
+        y_sequences = []
+        returns_sequences = []
+
+        for i in range(len(X) - timesteps):
+            X_sequences.append(X[i : i + timesteps])
+            y_sequences.append(y[i + timesteps])
+            returns_sequences.append(returns[i + timesteps])
+
+        X_sequences = np.array(X_sequences)
+        y_sequences = np.array(y_sequences)
+        returns_sequences = np.array(returns_sequences)
+
+        split_index = int(len(X_sequences) * 0.8)  # 80% train, 20% test
+        X_train, X_test = X_sequences[:split_index], X_sequences[split_index:]
+        y_train, y_test = y_sequences[:split_index], y_sequences[split_index:]
+        returns_sequences_test = returns_sequences[split_index:]
 
         positions = []
         cash = initial_cash
         holdings = 0
-        equity_curve = []
+        capital = [initial_cash]
 
-        for i in range(sequence_length, len(X)):
-            x_seq = X[i - sequence_length : i].reshape(1, sequence_length, num_features)
-            proba = self.rnn_model.predict(x_seq, verbose=0)[0][0]
-            price = y_true[i]  # This assumes target ≈ return or proxy of next move
+        y_pred_proba = self.rnn_model.predict(X_test)[:, 0]  # Assuming sigmoid output
+       
 
-            # Decision
-            if proba > threshold_buy:
-                action = "Buy"
-            elif proba < threshold_sell:
-                action = "Sell"
-            else:
-                action = "Hold"
+        # Loop over each prediction and return
+        for i in range(len(y_pred_proba)):
+            if y_pred_proba[i] > threshold_buy:  # Buy
+                capital.append(capital[-1] * (1 + returns_sequences_test[i]))
+            
+            elif y_pred_proba[i] < threshold_sell : #Short
+                
+                capital.append(capital[-1] * (1 - returns_sequences_test[i]))
 
-            # Simple strategy: fully invest or exit
-            if action == "Buy" and holdings == 0:
-                holdings = cash
-                cash = 0
-            elif action == "Sell" and holdings > 0:
-                cash = holdings * (1 + price)  # approximate return
-                holdings = 0
+            else:  # Hold in cash
+                capital.append(capital[-1])  # no gain/loss
 
-            total_equity = cash + holdings * (1 + price)
-            equity_curve.append(total_equity)
-            positions.append(action)
+        capital = np.array(capital[1:])  # Drop initial entry
 
-        # Build DataFrame of results
-        results = df.iloc[sequence_length:].copy()
-        results["Signal"] = positions
-        results["Equity"] = equity_curve
+        daily_returns = np.diff(capital) / capital[:-1]
+        sharpe_ratio = daily_returns.mean() / daily_returns.std() * np.sqrt(252)
 
-        print("✅ Backtest complete.")
-        print(f"Final Portfolio Value: ${equity_curve[-1]:.2f}")
-        self.backtest_results = results
-        return results
+        
+
+        #accuracy = accuracy_score(y_test, y_pred)
+        #print(f"✅ Accuracy: {accuracy:.4f}")
+        print(f"📈 Sharpe Ratio: {sharpe_ratio:.2f}")
+        print(f"💰 Final Capital: ${capital[-1]:,.2f}")
+
+        plt.figure(figsize=(12, 5))
+        plt.plot(capital, label="Equity Curve")
+        plt.title("Backtest Equity Curve")
+        plt.xlabel("Days")
+        plt.ylabel("Capital ($)")
+        plt.grid(True)
+        plt.legend()
+        plt.show()
