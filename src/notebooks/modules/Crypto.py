@@ -190,33 +190,40 @@ class CryptoData:
         df_real = self.raw_data.copy()
         YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
         df_real = filter_data_by_year_month(df_real, YEARS)
-        df_real = feature_engineering_last(df_real)
-        returns = df_real["returns", ""]
-                
 
+        time = df_real["timestamp"]
+
+        df_real = feature_engineering_last(df_real)
+        returns = df_real["return"]
+        
+        X = np.asarray(X)
+        returns = np.asarray(returns)
+        y = np.asarray(y)
+        time = np.asarray(time)
         # Reshape the data into sequences (timesteps)
         timesteps = sequence_length  # Number of timesteps for the RNN
         X_sequences = []
         y_sequences = []
         returns_sequences = []
+        time_sequences = []
 
         for i in range(len(X) - timesteps):
             X_sequences.append(X[i : i + timesteps])
             y_sequences.append(y[i + timesteps])
             returns_sequences.append(returns[i + timesteps])
+            time_sequences.append(time[i + timesteps])
 
         X_sequences = np.array(X_sequences)
         y_sequences = np.array(y_sequences)
         returns_sequences = np.array(returns_sequences)
+        time_sequences = np.array(time_sequences)
 
         split_index = int(len(X_sequences) * 0.8)  # 80% train, 20% test
         X_train, X_test = X_sequences[:split_index], X_sequences[split_index:]
         y_train, y_test = y_sequences[:split_index], y_sequences[split_index:]
         returns_sequences_test = returns_sequences[split_index:]
+        time_sequences_test = time_sequences[split_index:]
 
-        positions = []
-        cash = initial_cash
-        holdings = 0
         capital = [initial_cash]
 
         y_pred_proba = self.rnn_model.predict(X_test)[:, 0]  # Assuming sigmoid output
@@ -236,21 +243,46 @@ class CryptoData:
 
         capital = np.array(capital[1:])  # Drop initial entry
 
-        daily_returns = np.diff(capital) / capital[:-1]
-        sharpe_ratio = daily_returns.mean() / daily_returns.std() * np.sqrt(252)
+        interval_returns = np.diff(capital) / capital[:-1]
 
-        
+        periods_per_day = 96  # 15 min candles
+        trading_days_per_year = 365
+        sharpe_ratio = interval_returns.mean() / interval_returns.std() * np.sqrt(periods_per_day * trading_days_per_year)
+                #96 periods by day and 96*365 = 35 040
 
-        #accuracy = accuracy_score(y_test, y_pred)
-        #print(f"✅ Accuracy: {accuracy:.4f}")
+
+        capital = np.array(capital)
+        changes = np.diff(capital)
+
+        # Filter only non-zero moves
+        non_zero_moves = changes[changes != 0]
+
+        if len(non_zero_moves) == 0:
+            return 0.0  # Avoid division by zero
+
+        profitable_moves = np.sum(non_zero_moves > 0)
+        accuracy = profitable_moves / len(non_zero_moves)
+
+
+
+        print(f"✅ Accuracy: {accuracy:.4f}")
         print(f"📈 Sharpe Ratio: {sharpe_ratio:.2f}")
         print(f"💰 Final Capital: ${capital[-1]:,.2f}")
 
         plt.figure(figsize=(12, 5))
         plt.plot(capital, label="Equity Curve")
+
+        # Tick every 20 days (1920 intervals)
+        total_intervals = len(capital)
+        tick_every = 1920  # 20 days × 96 intervals/day
+        ticks = np.arange(0, total_intervals, tick_every)
+        tick_labels = [pd.to_datetime(time_sequences_test[i]).strftime("%Y-%m-%d %H:%M") for i in ticks]
+
+        plt.xticks(ticks, tick_labels, rotation=45)
         plt.title("Backtest Equity Curve")
-        plt.xlabel("Days")
+        plt.xlabel("Day")
         plt.ylabel("Capital ($)")
         plt.grid(True)
         plt.legend()
+        plt.tight_layout()
         plt.show()
