@@ -3,13 +3,13 @@ import sys
 import time
 from datetime import datetime
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 import tensorflow as tf
 from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
 
 # Add the project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -170,9 +170,7 @@ class CryptoData:
         else:
             return "Hold"
 
-    def backtesting(
-        self, threshold_buy=0.55, threshold_sell=0.44, initial_cash=10000
-    ):
+    def backtesting(self, threshold_buy=0.55, threshold_sell=0.44, initial_cash=10000):
         if self.rnn_model is None:
             print("❌ Model not loaded.")
             return
@@ -186,7 +184,6 @@ class CryptoData:
         X = self.preprocessed_data.drop(columns=["target"]).values  # Features
         y = self.preprocessed_data["target"].values  # Target variable
 
-
         df_real = self.raw_data.copy()
         YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
         df_real = filter_data_by_year_month(df_real, YEARS)
@@ -195,7 +192,7 @@ class CryptoData:
 
         df_real = feature_engineering_last(df_real)
         returns = df_real["return"]
-        
+
         X = np.asarray(X)
         returns = np.asarray(returns)
         y = np.asarray(y)
@@ -227,15 +224,13 @@ class CryptoData:
         capital = [initial_cash]
 
         y_pred_proba = self.rnn_model.predict(X_test)[:, 0]  # Assuming sigmoid output
-       
 
         # Loop over each prediction and return
         for i in range(len(y_pred_proba)):
             if y_pred_proba[i] > threshold_buy:  # Buy
                 capital.append(capital[-1] * (1 + returns_sequences_test[i]))
-            
-            elif y_pred_proba[i] < threshold_sell : #Short
-                
+
+            elif y_pred_proba[i] < threshold_sell:  # Short
                 capital.append(capital[-1] * (1 - returns_sequences_test[i]))
 
             else:  # Hold in cash
@@ -247,9 +242,12 @@ class CryptoData:
 
         periods_per_day = 96  # 15 min candles
         trading_days_per_year = 365
-        sharpe_ratio = interval_returns.mean() / interval_returns.std() * np.sqrt(periods_per_day * trading_days_per_year)
-                #96 periods by day and 96*365 = 35 040
-
+        sharpe_ratio = (
+            interval_returns.mean()
+            / interval_returns.std()
+            * np.sqrt(periods_per_day * trading_days_per_year)
+        )
+        # 96 periods by day and 96*365 = 35 040
 
         capital = np.array(capital)
         changes = np.diff(capital)
@@ -263,8 +261,6 @@ class CryptoData:
         profitable_moves = np.sum(non_zero_moves > 0)
         accuracy = profitable_moves / len(non_zero_moves)
 
-
-
         print(f"✅ Accuracy: {accuracy:.4f}")
         print(f"📈 Sharpe Ratio: {sharpe_ratio:.2f}")
         print(f"💰 Final Capital: ${capital[-1]:,.2f}")
@@ -276,7 +272,10 @@ class CryptoData:
         total_intervals = len(capital)
         tick_every = 1920  # 20 days × 96 intervals/day
         ticks = np.arange(0, total_intervals, tick_every)
-        tick_labels = [pd.to_datetime(time_sequences_test[i]).strftime("%Y-%m-%d %H:%M") for i in ticks]
+        tick_labels = [
+            pd.to_datetime(time_sequences_test[i]).strftime("%Y-%m-%d %H:%M")
+            for i in ticks
+        ]
 
         plt.xticks(ticks, tick_labels, rotation=45)
         plt.title("Backtest Equity Curve")
