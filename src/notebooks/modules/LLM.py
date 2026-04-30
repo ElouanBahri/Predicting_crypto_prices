@@ -59,7 +59,7 @@ class CryptoNewsFetcher:
         self.base_url = "https://cryptopanic.com/api/v1/posts/"
         self.currencies = currencies
 
-    def fetch_headlines(self, kind="news", filter="latest", limit=10):
+    def fetch_headlines(self, kind="news", filter="latest", limit=100):
         params = {
             "auth_token": self.api_key,
             "currencies": self.currencies,
